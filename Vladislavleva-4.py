@@ -12,20 +12,51 @@ from deap import creator
 from deap import tools
 from deap import gp
 
-# Define new functions
+def Sigma(inputFunc, inputCount):
+    if(inputCount <= 0):
+        return 0
+    
+    if(not isinstance(inputCount, int)):
+        return 0
+
+    if(not callable(inputFunc)):
+        return 0
+
+    sigmaTotal = 0
+    for temp in range(1, inputCount+1):
+        sigmaTotal += inputFunc(temp)
+    return sigmaTotal
+
 def protectedDiv(left, right):
     try:
         return left / right
     except ZeroDivisionError:
         return 1
 
+def makeSquare(variable):
+    return (variable ** 2)
+
+
+def SigmaOrigin(x):
+    return Sigma(makeSquare(x-3), 5)
+
+
 pset = gp.PrimitiveSet("MAIN", 1)
 pset.addPrimitive(operator.add, 2)
 pset.addPrimitive(operator.sub, 2)
 pset.addPrimitive(operator.mul, 2)
 pset.addPrimitive(protectedDiv, 2)
-pset.addPrimitive(operator.neg, 1)
+pset.addPrimitive(Sigma, 2)
+pset.addPrimitive(makeSquare, 1)
+
+pset.addTerminal(10)
+pset.addTerminal(5)
+
 pset.renameArguments(ARG0='x')
+pset.renameArguments(ARG1='y')
+pset.renameArguments(ARG2='z')
+pset.renameArguments(ARG3='w')
+pset.renameArguments(ARG4='o')
 
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
@@ -36,18 +67,16 @@ toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.ex
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 toolbox.register("compile", gp.compile, pset=pset)
 
-def Sigma(last):
-    sum = 0
-    for i in range(1, last+1):
-        sum += 1/i
-    return sum
-
 def evalSymbReg(individual, points):
     func = toolbox.compile(expr=individual)
-    sqerrors = ((func(x) - Sigma(x))**2 for x in points)
+    sqerrors = ((func(x) - SigmaOrigin(x))**2 for x in points)
     return math.fsum(sqerrors) / len(points),
 
-toolbox.register("evaluate", evalSymbReg, points=[x for x in range(1,51)])
+def makeSet(bottom, up, count):
+    diVFactor = (up - bottom) / count
+    return [bottom + x * diVFactor for x in range(count)]
+
+toolbox.register("evaluate", evalSymbReg, points=makeSet(0.05, 6.05, 1024))
 toolbox.register("select", tools.selTournament, tournsize=20)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=1, max_=5)
@@ -56,34 +85,15 @@ toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
-def main():
-    pop = toolbox.population(n=1000)
-    hof = tools.HallOfFame(1)
-    expr = toolbox.individual()
-    nodes, edges, labels = gp.graph(expr)
+pop = toolbox.population(n=100)
+hof = tools.HallOfFame(1)
+stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
+stats_size = tools.Statistics(len)
+mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
+mstats.register("avg", numpy.mean)
+mstats.register("std", numpy.std)
+mstats.register("min", numpy.min)
+mstats.register("max", numpy.max)
 
-    g = nx.Graph()
-    g.add_nodes_from(nodes)
-    g.add_edges_from(edges)
-    pos = nx.graphviz_layout(g, prog="dot")
-
-    nx.draw_networkx_nodes(g, pos)
-    nx.draw_networkx_edges(g, pos)
-    nx.draw_networkx_labels(g, pos, labels)
-    plt.show()
-    
-    # stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
-    # stats_size = tools.Statistics(len)
-    # mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
-    # mstats.register("avg", numpy.mean)
-    # mstats.register("std", numpy.std)
-    # mstats.register("min", numpy.min)
-    # mstats.register("max", numpy.max)
-
-    # pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.1, 100, stats=mstats,
-    #                                halloffame=hof, verbose=True)
-    # print log
-    return pop, log, hof
-
-if __name__ == "__main__":
-    main()
+pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.1, 40, stats=mstats,
+                                halloffame=hof, verbose=True)
