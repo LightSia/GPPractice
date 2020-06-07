@@ -11,6 +11,9 @@ from deap import base
 from deap import creator
 from deap import tools
 from deap import gp
+
+import pygraphviz as pgv
+
 def Sigma(variable):
     sum = 0
     for i in range(1, variable+1):
@@ -49,12 +52,13 @@ toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.ex
 expr = toolbox.individual()
 nodes, edges, labels = gp.graph(expr)
 
-g = nx.Graph()
+g = pgv.AGraph()
 g.add_nodes_from(nodes)
 g.add_edges_from(edges)
-pos = nx.graphviz_layout(g, prog="dot")
+g.layout(prog="dot")
 
-nx.draw_networkx_nodes(g, pos)
-nx.draw_networkx_edges(g, pos)
-nx.draw_networkx_labels(g, pos, labels)
-plt.show()
+for i in nodes:
+    n = g.get_node(i)
+    n.attr["label"] = labels[i]
+
+g.draw("tree.pdf")
