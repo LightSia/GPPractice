@@ -55,7 +55,6 @@ nodes, edges, labels = gp.graph(expr)
 g = pgv.AGraph()
 g.add_nodes_from(nodes)
 g.add_edges_from(edges)
-g.layout(prog="dot")
 
 for i in nodes:
     n = g.get_node(i)
