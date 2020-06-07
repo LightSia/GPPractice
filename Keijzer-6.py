@@ -12,6 +12,8 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+import pygraphviz as pgv
+
 def Sigma(variable):
     sum = 0
     for i in range(1, variable+1):
