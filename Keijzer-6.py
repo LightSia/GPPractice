@@ -12,8 +12,6 @@ from deap import creator
 from deap import tools
 from deap import gp
 
-import pygraphviz as pgv
-
 def Sigma(variable):
     sum = 0
     for i in range(1, variable+1):
@@ -48,6 +46,16 @@ creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
 toolbox = base.Toolbox()
 toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=5)
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+toolbox.register("compile", gp.compile, pset=pset)
+
+toolbox.register("select", tools.selTournament, tournsize=20)
+toolbox.register("mate", gp.cxOnePoint)
+toolbox.register("expr_mut", gp.genFull, min_=1, max_=5)
+toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
+
+toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
+toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
 expr = toolbox.individual()
 nodes, edges, labels = gp.graph(expr)
